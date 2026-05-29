@@ -1,2 +1,2 @@
 # EXTRA_TORSIONE
-Dati utili pendolo a torsione
+Dati utili pendolo a torsione, ANDAMENTO MASSIMI E MINIMI - ANDAMENTO AMPIEZZE - CODICI
