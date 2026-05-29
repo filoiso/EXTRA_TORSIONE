@@ -1,0 +1,185 @@
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <cctype>
+#include <iomanip>
+#include <algorithm>
+using namespace std;
+
+double mean (vector<double>);
+double stddev (vector<double>, double);
+double sttdevm (vector<double>, double);
+
+double mean (vector<double> data){
+    double sum = 0;
+    for (auto i:data){
+        sum += i;
+    }
+    return sum/data.size();
+}
+double stddev (vector<double> data, double mean){
+    double sum2 = 0;
+    for (auto i:data){
+        sum2 += pow(i-mean,2);
+    }
+    return sqrt(sum2/(data.size()-1));
+}
+double sttdevm (vector<double> data, double mean){
+    double sum2 = 0;
+    for (auto i:data){
+        sum2 += pow(i-mean,2);
+    }
+    return sqrt(sum2/(data.size()-1))/sqrt(data.size());
+}
+
+int main(){
+
+    //LETTURA DA FILE
+    ofstream ofilefit("Fit2.txt");
+    double freqF = 0.700;
+    double tcamp = 0.02;
+    //Richiesta zone di stabilità (analizzate da grafici)
+    double tlim1 = 100, tlim2=180;
+    double l1 = floor(tlim1/tcamp);
+    double l2 = floor(tlim2/tcamp); 
+    cout << l2;
+
+    double vic = 5; //Cerco i punti più alti dei 5 alla loro destra e alla loro sinistra
+
+    for (int fileidx = 0; fileidx < 1000; ++fileidx) {
+        //LETTURA CICLICA DA FILE
+         double freqF = 0.700 + fileidx * 0.005;
+        double tlim1 = 120, tlim2=190;
+        if ((freqF == 0.750) || (freqF==0.850)||(freqF==1.5)){
+            tlim1 = 75; tlim2=110;
+            
+        }
+        double l1 = floor(tlim1/tcamp);
+        double l2 = floor(tlim2/tcamp); 
+        ostringstream streamFreq;
+        streamFreq << fixed << setprecision(3) << freqF;
+        string freqStr = streamFreq.str();
+        string inputfilename = "2freq" + freqStr + "-amp14-gr23.txt";
+        string outputfilename = "OutDEF" + inputfilename;
+        ifstream ifile(inputfilename);
+
+        // Verifica se il file di input esiste ed è accessibile
+        if (ifile.is_open()) {
+            ofstream ofile(outputfilename);
+            cout << "Elaborazione di: " << inputfilename << " -> " << outputfilename << endl;
+            double periodo = 1./freqF;
+            vector <double> pend,tempi; //Vettore delle posizioni del pendolo, di cui si cerca il massimo e il minimo per ogni periodo
+            string s;
+            double t, f, p;
+             
+            while (getline(ifile,s)){
+                if (s.empty()) continue;
+                if (!isdigit(s[0]) && s[0] != '-') continue; //Salto intestazioni e prevengo salto negativi
+
+                stringstream st(s);
+                st >> t >> f >>p;
+                pend.push_back(p);
+                tempi.push_back(t);
+            }
+            cout << pend.size();
+            vector <double> maxs, tempomax, indexmx;
+            vector <double> mins, tempomin, indexmn, absmins;
+            vector<double> ampiezze;
+            //CICLO DEI MASSIMI: Zero crossing + massimo assoluto + escludo falsi massimi
+            //Determino i periodi in base a quando la funzione passa per 0, per scelta decido di prendere quelli in salita
+            vector<int> salite;
+            double ncamp = periodo / tcamp; 
+            int nperiodi = floor((l2 - l1) / ncamp);
+            int min_dist = floor(ncamp * 0.6); //Evito errori su zerocross
+            int last_cross = -1e9;
+cerr << "l1=" << l1 << " l2=" << l2 
+     << " pend.size()=" << pend.size() 
+     << " freqF=" << freqF << endl;
+            for (int b = l1; b < l2 - 1; ++b) {
+                if ((pend.at(b) <= 0 && pend.at(b + 1) > 0)&& (pend.at(b-2) <= 0 && pend.at(b + 3) > 0)){
+                    if (b - last_cross > min_dist) {
+                    salite.push_back(b);
+                    last_cross = b; // Aggiorno la memoria
+                }
+                }
+            } //Ora ho i punti in cui il pendolo sale a partire dalla zona limite da me stabilita: ho cioè dei periodi tagliati nello zero crossing: posso non preoccuparmi che max e min siano tagliati qua
+            
+            for (int i = 0; i < salite.size() - 1; ++i) {
+            int start_idx = salite.at(i);
+            int end_idx = salite.at(i + 1);
+            double mx = -1e9;
+            double mn = 1e9;
+            int pos_max = -1;
+            int pos_min = -1;
+            // Cerco massimo assoluto e verifico che non sia un errore di lettura, cioè vedo se sono vicini i 5 punti a lui più vicini
+            for (int b = start_idx; b < end_idx; ++b) {
+                if (pend.at(b) > mx){
+                        bool ismax=true; 
+                        for (int a=1; a<vic+1; ++a){
+                            if (pend.at(b)>=pend.at(b-a) && pend.at(b)>=pend.at(b+a) && pend.at(b)-pend.at(b-1)< pend.at(b-1) && pend.at(b)-pend.at(b+1) < pend.at(b+1)){
+                                continue;
+                            }
+                            else{
+                                ismax=false;
+                                break;
+                            }}
+                        if (ismax) {
+                            mx = pend.at(b);
+                            pos_max = b;    
+                        }
+                    }
+                    if (pend.at(b) < mn){
+                        bool ismin=true; 
+                        for (int a=1; a<vic+1; ++a){
+                            if (pend.at(b)<=pend.at(b-a) && pend.at(b)<=pend.at(b+a)&& pend.at(b)-pend.at(b-1)> pend.at(b-1) && pend.at(b)-pend.at(b+1) > pend.at(b+1)){
+                                continue;
+                            }
+                            else{
+                                ismin=false;
+                                break;
+                            }}
+                        if (ismin) {
+                            mn = pend.at(b); 
+                            pos_min = b;     
+                        }
+                    }
+            }
+            // Salvo i risultati per questo periodo
+            if (pos_max != -1 && pos_min != -1) {
+                maxs.push_back(mx);
+                tempomax.push_back(tempi.at(pos_max));
+                indexmx.push_back(pos_max);
+
+                mins.push_back(mn);
+                absmins.push_back(abs(mn));
+                tempomin.push_back(tempi.at(pos_min));
+                indexmn.push_back(pos_min);
+                
+                ampiezze.push_back((mx - mn) / 2.0);
+            }
+            
+            }
+            
+            cout << maxs.size()<< "\t" << mins.size();
+            int minsize =min(maxs.size(), mins.size());
+            for (int b=0; b<minsize; ++b){
+                ofile << maxs.at(b) <<"\t" << tempomax.at(b) << "\t" << mins.at(b) << "\t" << tempomin.at(b) << "\t" <<salite.at(b)*0.02 << " \t" << ampiezze.at(b) <<"\n";
+            }
+            
+            vector<double> all = maxs; 
+            all.insert(all.end(), absmins.begin(), absmins.end());
+
+            
+            ofilefit << freqF<< "\t"<<setprecision(10) << mean(ampiezze) << "\t" << stddev(ampiezze, mean(ampiezze)) << "\n" ;
+            //CALCOLO DI CORRELAZIONI
+            ifile.close();
+            ofile.close();
+        } else {
+            cerr << "Errore: impossibile aprire " << inputfilename << " o " << outputfilename << endl;
+        }
+    }
+    return 0;
+}
