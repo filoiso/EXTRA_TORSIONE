@@ -174,7 +174,6 @@ cerr << "l1=" << l1 << " l2=" << l2
 
             
             ofilefit << freqF<< "\t"<<setprecision(10) << mean(ampiezze) << "\t" << stddev(ampiezze, mean(ampiezze)) << "\n" ;
-            //CALCOLO DI CORRELAZIONI
             ifile.close();
             ofile.close();
         } else {
